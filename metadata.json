@@ -1,0 +1,8 @@
+{
+  "name": "Remix CrackSvenska",
+  "description": "Crack Swedish language texts with dynamic gaming mechanics, powered by the Gemini API. Upload articles or paste text, study key vocabulary in custom quizzes, and trace reading confidence scores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

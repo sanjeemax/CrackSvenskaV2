@@ -16,6 +16,8 @@ import GatingView from "./components/GatingView";
 import GameArenaView from "./components/GameArenaView";
 import ReadingView from "./components/ReadingView";
 import StatsPanel from "./components/StatsPanel";
+import PWAInstallButton from "./components/PWAInstallButton";
+import { useOnlineStatus } from "./useOnlineStatus";
 
 const PROGRESS_STORAGE_KEY = "cracksvenska_progress_v1";
 const API_KEY_STORAGE_KEY = "cracksvenska_api_key_v1";
@@ -57,6 +59,7 @@ export default function App() {
   const [vocabulary, setVocabulary] = useState<VocabularyQuestion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
+  const isOnline = useOnlineStatus();
 
   // Load configuration and statistics on mount
   useEffect(() => {
@@ -234,6 +237,11 @@ export default function App() {
       setVocabulary(vocabList);
       localStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(vocabList));
 
+      if (data.engine === "offline_fallback") {
+        setActiveNotification("⚡ Decoded via resilient offline engine (AI at high capacity)");
+        setTimeout(() => setActiveNotification(null), 4000);
+      }
+
       // Check for Elite Cryptologist achievement if confidence starts high
       const masteredSet = new Set(progress.masteredWords.map((w) => w.toLowerCase()));
       const matches = vocabList.filter((item) => masteredSet.has(item.swedishWord.toLowerCase()));
@@ -307,15 +315,26 @@ export default function App() {
               <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Learn Swedish with play & fun</p>
             </div>
           </div>
-          <button
-            id="open-settings-btn"
-            onClick={() => setIsSettingsOpen(true)}
-            className="rounded-xl bg-slate-950 p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white border border-slate-800 shadow-inner"
-            title="Open Settings"
-          >
-            <Settings className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <PWAInstallButton variant="header" />
+            <button
+              id="open-settings-btn"
+              onClick={() => setIsSettingsOpen(true)}
+              className="rounded-xl bg-slate-950 p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white border border-slate-800 shadow-inner"
+              title="Open Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </button>
+          </div>
         </header>
+
+        {/* Offline Status Bar */}
+        {!isOnline && (
+          <div className="bg-amber-500/90 px-4 py-2 text-center text-xs font-bold text-slate-950 flex items-center justify-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-slate-950 animate-pulse" />
+            <span>Offline Mode Active — Using cached lessons & vocabulary</span>
+          </div>
+        )}
 
         {/* Global Achievement notifications */}
         <AnimatePresence>

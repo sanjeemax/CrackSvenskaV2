@@ -2,6 +2,7 @@ import React, { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { Clipboard, FileUp, Upload, Sparkles, BookOpen, Newspaper, Coffee, Gauge } from "lucide-react";
 import { motion } from "motion/react";
 import { DifficultyLevel } from "../types";
+import PWAInstallButton from "./PWAInstallButton";
 
 interface DashboardViewProps {
   onCrackText: (text: string, difficulty: DifficultyLevel) => void;
@@ -377,6 +378,9 @@ export default function DashboardView({
       >
         <span>⚡ CRACK THIS TEXT ({activeOption.cefr})</span>
       </button>
+
+      {/* PWA Home Screen Installation Card */}
+      <PWAInstallButton variant="card" />
     </div>
   );
 }

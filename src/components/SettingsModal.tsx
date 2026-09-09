@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Key, ShieldAlert, CheckCircle2, Volume2, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import PWAInstallButton from "./PWAInstallButton";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -235,6 +236,9 @@ export default function SettingsModal({
                   )}
                 </div>
               </div>
+
+              {/* iPhone / Mobile Home Screen App (PWA) section */}
+              <PWAInstallButton variant="settings" />
 
               {/* Notice block */}
               <div className="rounded-xl bg-slate-950/60 p-4 border border-slate-800 space-y-3">

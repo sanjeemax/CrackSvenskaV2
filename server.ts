@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { extractFallbackVocabulary } from "./src/fallbackVocabulary.js";
 
 dotenv.config();
 
@@ -130,15 +131,15 @@ ${text}
         }
       };
 
-      // Candidate models for resilience: primary default + standard fallbacks
-      const candidateModels = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+      // Candidate models for resilience: primary flash model + high-throughput flash-lite model
+      const candidateModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
       let lastError: any = null;
       let jsonText: string | null = null;
 
-      for (let i = 0; i < candidateModels.length; i++) {
-        const modelName = candidateModels[i];
+      for (let attempt = 0; attempt < candidateModels.length; attempt++) {
+        const modelName = candidateModels[attempt];
         try {
-          console.log(`Decoding Swedish text with model: ${modelName} (attempt ${i + 1}/${candidateModels.length})`);
+          console.log(`[Decoder] Requesting Swedish vocabulary with model: ${modelName} (attempt ${attempt + 1}/${candidateModels.length})`);
           const response = await ai.models.generateContent({
             model: modelName,
             contents: [{ text: prompt }],
@@ -154,16 +155,30 @@ ${text}
           }
         } catch (err: any) {
           lastError = err;
-          console.warn(`Model ${modelName} encountered an error:`, err?.message || err);
+          const errMsg = String(err?.message || err || "");
+          const is503 = errMsg.includes("503") || errMsg.includes("UNAVAILABLE") || errMsg.includes("high demand");
+          console.log(`[Decoder] Model ${modelName} ${is503 ? "temporarily busy (503 high demand)" : "unavailable"}. Checking failover options...`);
           
-          if (i < candidateModels.length - 1) {
-            // Pause 1 second before trying the next candidate model
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+          if (attempt < candidateModels.length - 1) {
+            // Adaptive jittered backoff before trying alternate model pool
+            await new Promise((resolve) => setTimeout(resolve, 1200 + Math.random() * 600));
           }
         }
       }
 
       if (!jsonText) {
+        // Fallback: If Gemini cloud is experiencing a temporary 503 spike across models,
+        // use the robust built-in Swedish vocabulary engine so the user is NEVER blocked.
+        console.log("[Decoder] Gemini models currently at capacity. Activating resilient offline vocabulary engine...");
+        const fallbackItems = extractFallbackVocabulary(text, validDifficulty);
+        if (fallbackItems && fallbackItems.length >= 3) {
+          console.log(`[Decoder] Successfully extracted ${fallbackItems.length} words via resilient vocabulary engine.`);
+          return res.json({
+            vocabulary: fallbackItems,
+            difficulty: validDifficulty,
+            engine: "offline_fallback"
+          });
+        }
         throw lastError || new Error("Unable to decode text at this moment.");
       }
 
@@ -217,7 +232,28 @@ ${text}
         difficulty: validDifficulty 
       });
     } catch (error: any) {
-      console.error("Gemini API server-side error:", error);
+      // Last-resort recovery: attempt resilient offline dictionary extraction if text is provided
+      try {
+        const { text, difficulty = "intermediate" } = req.body || {};
+        if (typeof text === "string" && text.trim()) {
+          const validDiff = (difficulty === "very_basic" || difficulty === "beginner" || difficulty === "advanced")
+            ? difficulty
+            : "intermediate";
+          const fallbackVocab = extractFallbackVocabulary(text, validDiff);
+          if (fallbackVocab && fallbackVocab.length >= 3) {
+            console.log(`[Decoder] Activated offline vocabulary recovery (${fallbackVocab.length} words extracted).`);
+            return res.json({
+              vocabulary: fallbackVocab,
+              difficulty: validDiff,
+              engine: "offline_fallback"
+            });
+          }
+        }
+      } catch (recoveryErr) {
+        // Continue to error response below
+      }
+
+      console.error("Gemini API server-side error:", error?.message || error);
 
       // Extract user-friendly error message from SDK / JSON
       let userFriendlyMessage = "An unexpected error occurred while communicating with the Gemini API.";

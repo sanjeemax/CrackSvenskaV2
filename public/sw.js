@@ -1,10 +1,11 @@
-const CACHE_NAME = "cracksvenska-pwa-v1";
+const CACHE_NAME = "cracksvenska-pwa-v2";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
   "/manifest.json",
   "/icon-192.png",
-  "/icon-512.png"
+  "/icon-512.png",
+  "/apple-touch-icon.png"
 ];
 
 // Install Event: pre-caches the main app skeleton
